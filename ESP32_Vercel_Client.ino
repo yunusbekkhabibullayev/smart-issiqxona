@@ -16,7 +16,7 @@ const char* password = "12345678";      // WiFi paroli
 // Saytingizni Vercel ga deploy qilgach olgan havolani yozasiz:
 // Masalan: "https://issiqxona.vercel.app/api/status"
 // ─────────────────────────────────────────────
-const char* VERCEL_API_URL = "https://YOUR-APP-NAME.vercel.app/api/status";
+const char* VERCEL_API_URL = "https://smart-issiqxona.vercel.app/api/status";
 
 // ─────────────────────────────────────────────
 // 3. Telegram Bot sozlamalari
