@@ -387,9 +387,11 @@ export default function Dashboard() {
                     <div key={s.id} className="py-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
-                        <span className="text-xs text-slate-700 font-medium">{s.zone}</span>
+                        <span className="text-xs text-slate-700 font-medium">{s.name}</span>
                       </div>
-                      <span className={`font-bold text-sm ${cfg}`}>{s.value}°C</span>
+                      <span className={`font-bold text-sm ${cfg}`}>
+                        {espConnected || s.value > 0 ? `${s.value}°C` : '—'}
+                      </span>
                     </div>
                   );
                 })}
@@ -404,9 +406,11 @@ export default function Dashboard() {
                     <div key={s.id} className="py-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
-                        <span className="text-xs text-slate-700 font-medium">{s.zone}</span>
+                        <span className="text-xs text-slate-700 font-medium">{s.name}</span>
                       </div>
-                      <span className={`font-bold text-sm ${cfg}`}>{s.value}%</span>
+                      <span className={`font-bold text-sm ${cfg}`}>
+                        {espConnected || s.value > 0 ? `${s.value}%` : '—'}
+                      </span>
                     </div>
                   );
                 })}

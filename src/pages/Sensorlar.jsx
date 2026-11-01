@@ -101,7 +101,7 @@ function SensorCard({ sensor }) {
 
         {/* Time */}
         <p className="text-[9px] text-slate-400 font-mono mt-2">
-          {new Date(sensor.lastUpdate).toLocaleTimeString('uz-UZ')}
+          {sensor.lastUpdate ? new Date(sensor.lastUpdate).toLocaleTimeString('uz-UZ') : 'Kutilmoqda...'}
         </p>
       </div>
     </div>

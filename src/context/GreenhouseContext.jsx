@@ -106,14 +106,15 @@ export function GreenhouseProvider({ children }) {
         };
       }));
 
-      // Grafik uchun yangi nuqta (tuproq namligi foizi)
+      // Grafik uchun yangi nuqta (tuproq namligi foizi, harorat, namlik)
       setChartData(prev => {
         const now      = new Date();
         const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         const wetCount = data.soil.filter(s => s.wet).length;
         const tuproq   = Math.round((wetCount / data.soil.length) * 100);
-        const last     = prev[prev.length - 1] || { harorat: 24, namlik: 60 };
-        return [...prev.slice(-47), { time, harorat: last.harorat, namlik: last.namlik, tuproq }];
+        const harorat  = data.temp !== undefined ? Number(data.temp) : (prev[prev.length - 1]?.harorat || 0);
+        const namlik   = data.humidity !== undefined ? Number(data.humidity) : (prev[prev.length - 1]?.namlik || 0);
+        return [...prev.slice(-47), { time, harorat, namlik, tuproq }];
       });
     }
 
@@ -157,7 +158,7 @@ export function GreenhouseProvider({ children }) {
     setEsp32Modules(prev => prev.map((m, i) =>
       i === 0 ? {
         ...m,
-        name:   'ESP32 Issiqxona',
+        name:   'ESP32 / ESP8266 Issiqxona',
         ip:     data.ip     || m.ip,
         rssi:   data.rssi   || m.rssi,
         ssid:   data.ssid   || 'WiFi',
@@ -171,10 +172,8 @@ export function GreenhouseProvider({ children }) {
   const fetchFromEsp = useCallback(async () => {
     if (!API_STATUS) return;
 
-    console.log(`%c[ESP8266] → GET ${API_STATUS}`, 'color:#6366F1;font-size:11px');
-
     try {
-      const fetchOptions = { signal: AbortSignal.timeout(10000) };
+      const fetchOptions = { signal: AbortSignal.timeout(8000) };
       if (NGROK_DOMAIN) {
         fetchOptions.headers = { 'ngrok-skip-browser-warning': 'true' };
       }
@@ -184,15 +183,12 @@ export function GreenhouseProvider({ children }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      console.log('%c[ESP8266] ✅ Ma\'lumot keldi:', 'color:#10B981;font-weight:bold', data);
-      console.table(data.soil?.map(s => ({ id: s.id, label: s.label, holat: s.wet ? '💧 Nam' : '🏜 Quruq' })));
-
+      console.log('%c[ESP] ✅ Jonli ma\'lumot keldi:', 'color:#10B981;font-weight:bold', data);
       processEspData(data);
 
     } catch (err) {
-      console.warn(`%c[ESP8266] ❌ Xato: ${err.message}`, 'color:#F43F5E');
       if (espConnected) {
-        showToast('ESP8266 bilan aloqa uzildi ⚠️', 'warn');
+        showToast('Qurilma bilan aloqa uzildi (Offline) ⚠️', 'warn');
       }
       setEspConnected(false);
       setEsp32Modules(prev => prev.map((m, i) =>
@@ -201,40 +197,14 @@ export function GreenhouseProvider({ children }) {
     }
   }, [processEspData, espConnected, showToast]);
 
-  // ── Polling: har 7 soniyada so'rov ────────────────────
+  // ── Polling: har 5 soniyada yangilanish ─────────────────
   useEffect(() => {
-    if (!API_STATUS) return; // Mock rejim — polling shart emas
+    if (!API_STATUS) return;
 
     fetchFromEsp(); // Darhol birinchi so'rov
-    const interval = setInterval(fetchFromEsp, 7000);
+    const interval = setInterval(fetchFromEsp, 5000);
     return () => clearInterval(interval);
   }, [fetchFromEsp]);
-
-  // ── Mock simulyatsiya (API yo'q bo'lganda) ─────────────
-  useEffect(() => {
-    if (API_STATUS) return; // Real API bor → mock shart emas
-
-    const interval = setInterval(() => {
-      setSensors(prev => prev.map(s => {
-        const delta  = (Math.random() - 0.5) * 0.6;
-        const newVal = parseFloat(Math.max(s.min, Math.min(s.max, s.value + delta)).toFixed(1));
-        const status = newVal > s.optimal.max + 3 ? 'danger'
-                     : newVal > s.optimal.max     ? 'warn'
-                     : newVal < s.optimal.min - 3 ? 'danger'
-                     : newVal < s.optimal.min     ? 'warn' : 'normal';
-        return { ...s, value: newVal, status, lastUpdate: new Date().toISOString() };
-      }));
-      setSoilSensors(prev => prev.map(s => {
-        const delta  = (Math.random() - 0.55) * 1.2;
-        const newVal = Math.round(Math.max(10, Math.min(95, s.value + delta)));
-        const status = newVal < 35 ? 'danger' : newVal < 50 ? 'warn' : 'normal';
-        return { ...s, value: newVal, status };
-      }));
-      setLastSync(new Date());
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // ── Login/Logout va Parol boshqaruvi ──────────────────
   const login = useCallback((username, password) => {
