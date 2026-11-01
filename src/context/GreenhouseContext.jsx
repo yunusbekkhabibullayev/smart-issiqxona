@@ -39,8 +39,29 @@ console.log(
 );
 console.log(`%c[Issiqxona] Status API: ${API_STATUS}`, 'color:#3B82F6');
 
+const DEFAULT_USERS = [
+  { username: 'admin', password: 'admin2026!', name: 'Yunusov Sardor', role: 'Super Admin', avatar: 'YS' },
+];
+
 export function GreenhouseProvider({ children }) {
-  const [currentUser, setCurrentUser]         = useState(null);
+  // Foydalanuvchilar va sessiyani localStorage da saqlash
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smart_greenhouse_users');
+      return saved ? JSON.parse(saved) : DEFAULT_USERS;
+    } catch {
+      return DEFAULT_USERS;
+    }
+  });
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedSession = localStorage.getItem('smart_greenhouse_session');
+      return savedSession ? JSON.parse(savedSession) : null;
+    } catch {
+      return null;
+    }
+  });
   const [sensors, setSensors]                 = useState(INITIAL_SENSORS);
   const [soilSensors, setSoilSensors]         = useState(INITIAL_SOIL_SENSORS);
   const [devices, setDevices]                 = useState(INITIAL_DEVICES);
@@ -215,9 +236,42 @@ export function GreenhouseProvider({ children }) {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Login/Logout ───────────────────────────────────────
-  const login  = useCallback((user) => setCurrentUser(user), []);
-  const logout = useCallback(() => setCurrentUser(null),      []);
+  // ── Login/Logout va Parol boshqaruvi ──────────────────
+  const login = useCallback((username, password) => {
+    const user = users.find(u => u.username === username && u.password === password);
+    if (user) {
+      const sessionUser = { username: user.username, name: user.name, role: user.role, avatar: user.avatar };
+      setCurrentUser(sessionUser);
+      localStorage.setItem('smart_greenhouse_session', JSON.stringify(sessionUser));
+      return { success: true, user: sessionUser };
+    }
+    return { success: false, error: "Login yoki parol noto'g'ri!" };
+  }, [users]);
+
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    localStorage.removeItem('smart_greenhouse_session');
+  }, []);
+
+  const changePassword = useCallback((oldPassword, newPassword) => {
+    if (!currentUser) return { success: false, error: "Tizimga kirmagansiz!" };
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: "Yangi parol kamida 6 ta belgidan iborat bo'lishi shart!" };
+    }
+
+    const currentAcc = users.find(u => u.username === currentUser.username);
+    if (!currentAcc || currentAcc.password !== oldPassword) {
+      return { success: false, error: "Hozirgi parolingiz noto'g'ri!" };
+    }
+
+    const updatedUsers = users.map(u => 
+      u.username === currentUser.username ? { ...u, password: newPassword } : u
+    );
+
+    setUsers(updatedUsers);
+    localStorage.setItem('smart_greenhouse_users', JSON.stringify(updatedUsers));
+    return { success: true };
+  }, [currentUser, users]);
 
   // ── Qurilma toggle (Dastur orqali yoqish/o'chirish) ──────
   const toggleDevice = useCallback((deviceId) => {
@@ -298,7 +352,7 @@ export function GreenhouseProvider({ children }) {
 
   return (
     <GreenhouseContext.Provider value={{
-      currentUser, login, logout,
+      currentUser, login, logout, changePassword,
       sensors, soilSensors,
       devices, toggleDevice, toggleDeviceMode,
       plants, esp32Modules,

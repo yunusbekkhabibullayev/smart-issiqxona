@@ -3,11 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useGreenhouse } from '../context/GreenhouseContext';
 
-const USERS = [
-  { username: 'admin',    password: '1234', name: 'Yunusov Sardor',  role: 'Super Admin', avatar: 'YS' },
-  { username: 'operator', password: '1234', name: 'Karimov Bobur',   role: 'Operator',    avatar: 'KB' },
-];
-
 export default function Login() {
   const navigate = useNavigate();
   const { login, showToast } = useGreenhouse();
@@ -16,29 +11,52 @@ export default function Login() {
   const [showPwd, setShowPwd]       = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimer, setLockoutTimer]     = useState(0);
   const [uTouched, setUTouched]     = useState(false);
   const [pTouched, setPTouched]     = useState(false);
 
   const uOk = username.trim().length >= 3;
   const pOk = password.length >= 4;
 
+  // Blokirovka hisoblagichi
+  React.useEffect(() => {
+    if (lockoutTimer > 0) {
+      const timer = setInterval(() => setLockoutTimer(t => t - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [lockoutTimer]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (lockoutTimer > 0) {
+      setError(`Xavfsizlik blokirovkasi! Iltimos, ${lockoutTimer} soniya kuting.`);
+      return;
+    }
+
     setUTouched(true); setPTouched(true);
     if (!uOk || !pOk) { setError("Login va parolni to'liq kiriting!"); return; }
+    
     setLoading(true); setError('');
     setTimeout(() => {
-      const user = USERS.find(u => u.username === username && u.password === password);
+      const result = login(username.trim(), password);
       setLoading(false);
-      if (user) {
-        login(user);
+
+      if (result.success) {
+        setFailedAttempts(0);
         showToast('Tizimga muvaffaqiyatli kirdingiz!', 'success');
         navigate('/dashboard');
       } else {
-        setError("Login yoki parol noto'g'ri!");
-        setLoading(false);
+        const attempts = failedAttempts + 1;
+        setFailedAttempts(attempts);
+        if (attempts >= 5) {
+          setLockoutTimer(30); // 5 marta xatodan so'ng 30s blokirovka
+          setError("Xavfsizlik: 5 marta xato kiritildi! Tizim 30 soniyaga bloklandi.");
+        } else {
+          setError(result.error || "Login yoki parol noto'g'ri!");
+        }
       }
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -121,14 +139,11 @@ export default function Login() {
             </div>
           )}
 
-          {/* Hint */}
-          <p className="text-[10px] text-slate-400 text-center">Demo: <strong>admin</strong> / <strong>1234</strong></p>
-
           {/* Submit */}
           <button
             id="login-submit"
             type="submit"
-            disabled={loading}
+            disabled={loading || lockoutTimer > 0}
             className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-xs
               shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-55 cursor-pointer mt-1"
           >
@@ -137,6 +152,8 @@ export default function Login() {
                 <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 Kirilmoqda...
               </>
+            ) : lockoutTimer > 0 ? (
+              `Bloklangan (${lockoutTimer}s)`
             ) : 'Kirish'}
           </button>
         </form>

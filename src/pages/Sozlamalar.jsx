@@ -91,7 +91,7 @@ function LogoutModal({ isOpen, onClose, onConfirm }) {
 
 /* ─── Main ─── */
 export default function Sozlamalar() {
-  const { currentUser, logout, showToast } = useGreenhouse();
+  const { currentUser, logout, changePassword, showToast } = useGreenhouse();
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -103,6 +103,37 @@ export default function Sozlamalar() {
   const [humidMax, setHumidMax] = useState(75);
   const [humidMin, setHumidMin] = useState(55);
   const [soilMin, setSoilMin] = useState(40);
+
+  // Parol o'zgartirish state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+
+  const handlePasswordChange = (e) => {
+    e.preventDefault();
+    if (!oldPassword || !newPassword) {
+      showToast("Barcha maydonlarni to'ldiring!", "error");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast("Yangi parollar bir xil emas!", "error");
+      return;
+    }
+    setPwdLoading(true);
+    setTimeout(() => {
+      const res = changePassword(oldPassword, newPassword);
+      setPwdLoading(false);
+      if (res.success) {
+        showToast("Parol muvaffaqiyatli yangilandi! ✓", "success");
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        showToast(res.error || "Xatolik yuz berdi!", "error");
+      }
+    }, 400);
+  };
 
   const confirmLogout = () => { setShowLogout(false); logout(); navigate('/login'); };
 
@@ -533,6 +564,68 @@ export default function Sozlamalar() {
               </p>
             </div>
           </div>
+        </IosSection>
+
+        {/* Xavfsizlik va Parol */}
+        <IosSection title="Xavfsizlik va Kirish" footer="Yangi parol kamida 6 ta belgidan iborat bo'lishi lozim.">
+          <form onSubmit={handlePasswordChange} style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                Hozirgi parol
+              </label>
+              <input
+                type="password"
+                value={oldPassword}
+                onChange={e => setOldPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 10,
+                  border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                Yangi parol
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Kamida 6 belgi"
+                style={{
+                  width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 10,
+                  border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+                Yangi parolni tasdiqlang
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Yangi parolni qayta kiriting"
+                style={{
+                  width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 10,
+                  border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none'
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={pwdLoading}
+              style={{
+                marginTop: 4, padding: '10px 16px', borderRadius: 10,
+                background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600,
+                border: 'none', cursor: 'pointer', transition: '0.2s', opacity: pwdLoading ? 0.7 : 1
+              }}
+            >
+              {pwdLoading ? "O'zgartirilmoqda..." : "Parolni yangilash"}
+            </button>
+          </form>
         </IosSection>
 
         {/* Tizim Haqida */}
