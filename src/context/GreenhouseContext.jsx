@@ -306,10 +306,14 @@ export function GreenhouseProvider({ children }) {
   const tempSensors  = sensors.filter(s => s.type === 'temperature');
   const humidSensors = sensors.filter(s => s.type === 'humidity');
 
+  const hasRealTemp = espConnected && tempSensors.some(s => s.lastUpdate && s.value > 0);
+  const hasRealHumid = espConnected && humidSensors.some(s => s.lastUpdate && s.value > 0);
+  const hasRealSoil = espConnected && soilSensors.some(s => s.status !== 'offline');
+
   const stats = {
-    avgTemperature:  parseFloat((tempSensors.reduce((a,b)=>a+b.value,0) / (tempSensors.length||1)).toFixed(1)),
-    avgHumidity:     parseFloat((humidSensors.reduce((a,b)=>a+b.value,0) / (humidSensors.length||1)).toFixed(0)),
-    avgSoilMoisture: parseFloat((soilSensors.reduce((a,b)=>a+b.value,0) / (soilSensors.length||1)).toFixed(0)),
+    avgTemperature:  hasRealTemp ? parseFloat((tempSensors.reduce((a,b)=>a+b.value,0) / (tempSensors.length||1)).toFixed(1)) : null,
+    avgHumidity:     hasRealHumid ? parseFloat((humidSensors.reduce((a,b)=>a+b.value,0) / (humidSensors.length||1)).toFixed(0)) : null,
+    avgSoilMoisture: hasRealSoil ? Math.round((soilSensors.filter(s => s.wet).length / (soilSensors.length||1)) * 100) : null,
     activeDevices:   devices.filter(d => d.isOn).length,
     totalDevices:    devices.length,
     criticalAlerts:  alerts.filter(a => !a.resolved && (a.type==='danger'||a.type==='warn')).length,

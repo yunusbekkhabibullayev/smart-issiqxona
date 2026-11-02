@@ -71,8 +71,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [chartPeriod, setChartPeriod] = useState('6H');
 
-  const wetCount = soilSensors?.filter(s => s.wet || s.status === 'normal').length || 0;
-  const dryCount = (soilSensors?.length || 10) - wetCount;
+  const wetCount = espConnected ? soilSensors?.filter(s => s.wet).length || 0 : 0;
+  const dryCount = espConnected ? (soilSensors?.length || 10) - wetCount : 0;
   const espMod   = esp32Modules?.[0] || {};
 
   const recentAlerts = alerts?.filter(a => !a.resolved).slice(0, 3) || [];
@@ -81,7 +81,7 @@ export default function Dashboard() {
   const chartSlice   = chartPeriod === '6H' ? chartData.slice(18) : chartPeriod === '12H' ? chartData.slice(12) : chartData;
 
   const formatSync = () => {
-    if (!lastSync) return '';
+    if (!lastSync || !espConnected) return 'Offline';
     return lastSync.toLocaleTimeString('uz-UZ');
   };
 
@@ -96,9 +96,9 @@ export default function Dashboard() {
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2.5 max-w-xl">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2.5 h-2.5 rounded-full ${espConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${espConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
               <span className="text-xs text-slate-300 font-medium">
-                {espConnected ? 'ESP8266 Real Vaqtda Bog\'langan' : 'Aloqa kutilmoqda'} · {formatSync()}
+                {espConnected ? 'ESP Real Vaqtda Bog\'langan' : 'Aloqa kutilmoqda (Offline)'} · {formatSync()}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight">
@@ -107,11 +107,19 @@ export default function Dashboard() {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 font-normal leading-relaxed">
-              Issiqxona monitoringi: <strong className="text-emerald-400">10 ta ko'chat datchigi</strong> faol — {' '}
-              <strong className="text-emerald-300">{wetCount} ta 💧 Nam</strong>,{' '}
-              <strong className="text-rose-300">{dryCount} ta 🏜 Quruq</strong>.
-              {dryCount > 0 && (
-                <span className="text-rose-300 font-semibold"> ⚠️ {dryCount} ta ko'chatga suv quyilishi kerak!</span>
+              {espConnected ? (
+                <>
+                  Issiqxona monitoringi: <strong className="text-emerald-400">10 ta ko'chat datchigi</strong> faol — {' '}
+                  <strong className="text-emerald-300">{wetCount} ta 💧 Nam</strong>,{' '}
+                  <strong className="text-rose-300">{dryCount} ta 🏜 Quruq</strong>.
+                  {dryCount > 0 && (
+                    <span className="text-rose-300 font-semibold"> ⚠️ {dryCount} ta ko'chatga suv quyilishi kerak!</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-amber-300">
+                  ⚠️ Qurilma ulanmagan (Offline). ESP dan ma'lumot kelganda datchiklar real vaqtda ko'rinadi.
+                </span>
               )}
             </p>
           </div>
@@ -138,39 +146,39 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'ESP8266 Qurilmasi',
-            value: espConnected ? 'Online' : 'Aloqada',
-            sub: `IP: ${espMod.ip || '192.168.1.154'} · ${espMod.rssi || -72} dBm`,
+            label: 'ESP Qurilmasi',
+            value: espConnected ? 'Online' : 'Offline',
+            sub: espConnected ? `IP: ${espMod.ip || 'online'} · ${espMod.rssi || 0} dBm` : 'Qurilma kutilmoqda',
             icon: SignalIcon,
-            iconBg: espConnected ? 'bg-emerald-50 text-emerald-600 border-emerald-100/60' : 'bg-blue-50 text-blue-600 border-blue-100/60',
-            valueColor: espConnected ? 'text-emerald-600' : 'text-blue-600',
+            iconBg: espConnected ? 'bg-emerald-50 text-emerald-600 border-emerald-100/60' : 'bg-slate-50 text-slate-400 border-slate-100/60',
+            valueColor: espConnected ? 'text-emerald-600' : 'text-slate-400',
             path: '/sensorlar',
           },
           {
             label: 'Nam Ko\'chatlar',
-            value: `${wetCount} / 10`,
-            sub: '💧 Yetarli namlikda',
+            value: espConnected ? `${wetCount} / 10` : '—',
+            sub: espConnected ? '💧 Yetarli namlikda' : 'Ma\'lumot yo\'q',
             icon: () => <span className="text-base">💧</span>,
-            iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100/60',
-            valueColor: 'text-emerald-600',
+            iconBg: espConnected ? 'bg-emerald-50 text-emerald-600 border-emerald-100/60' : 'bg-slate-50 text-slate-400 border-slate-100/60',
+            valueColor: espConnected ? 'text-emerald-600' : 'text-slate-400',
             path: '/sensorlar',
           },
           {
             label: 'Quruq Ko\'chatlar',
-            value: `${dryCount} ta`,
-            sub: dryCount > 0 ? '⚠️ Suv quyilsin' : 'Barchasi joyida',
+            value: espConnected ? `${dryCount} ta` : '—',
+            sub: espConnected ? (dryCount > 0 ? '⚠️ Suv quyilsin' : 'Barchasi joyida') : 'Ma\'lumot yo\'q',
             icon: () => <span className="text-base">🏜️</span>,
-            iconBg: dryCount > 0 ? 'bg-rose-50 text-rose-600 border-rose-100/60' : 'bg-slate-50 text-slate-500 border-slate-100/60',
-            valueColor: dryCount > 0 ? 'text-rose-600' : 'text-slate-900',
+            iconBg: espConnected && dryCount > 0 ? 'bg-rose-50 text-rose-600 border-rose-100/60' : 'bg-slate-50 text-slate-400 border-slate-100/60',
+            valueColor: espConnected && dryCount > 0 ? 'text-rose-600' : 'text-slate-400',
             path: '/sensorlar',
           },
           {
             label: 'O\'rtacha Tuproq Namligi',
-            value: `${stats?.avgSoilMoisture || Math.round((wetCount / 10) * 100)}%`,
-            sub: '10 ta datchik bo\'yicha',
+            value: espConnected ? `${stats?.avgSoilMoisture !== null ? stats.avgSoilMoisture : Math.round((wetCount / 10) * 100)}%` : '—',
+            sub: espConnected ? '10 ta datchik bo\'yicha' : 'Qurilma kutilmoqda',
             icon: () => <span className="text-base">🌱</span>,
-            iconBg: 'bg-indigo-50 text-indigo-600 border-indigo-100/60',
-            valueColor: 'text-indigo-600',
+            iconBg: espConnected ? 'bg-indigo-50 text-indigo-600 border-indigo-100/60' : 'bg-slate-50 text-slate-400 border-slate-100/60',
+            valueColor: espConnected ? 'text-indigo-600' : 'text-slate-400',
             path: '/sensorlar',
           },
         ].map((card, i) => {
@@ -196,36 +204,39 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* 🌿 10 TA KO'CHAT NAMLIGI — JONLI ESP8266 SENSORLARI */}
+      {/* 🌿 10 TA KO'CHAT NAMLIGI — JONLI ESP SENSORLARI */}
       <div className="ios-card p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="font-bold text-slate-900 text-base">🌿 10 ta Ko'chat Tuproq Namligi (ESP8266 Jonli Ma'lumot)</h3>
+              <span className={`w-2.5 h-2.5 rounded-full ${espConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <h3 className="font-bold text-slate-900 text-base">🌿 10 ta Ko'chat Tuproq Namligi (ESP Jonli Ma'lumot)</h3>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Qurilmadan kelayotgan 10 ta MH sensorining har bir ko'chat bo'yicha jonli holati
+              {espConnected ? "Qurilmadan kelayotgan 10 ta sensorning har bir ko'chat bo'yicha jonli holati" : "Qurilma ulanmagan — sensor ko'rsatkichlari kutilmoqda"}
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-medium">
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-              💧 {wetCount} ta Nam
+            <span className={`px-2.5 py-1 rounded-lg ${espConnected ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}`}>
+              💧 {espConnected ? `${wetCount} ta Nam` : '—'}
             </span>
-            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
-              🏜 {dryCount} ta Quruq
+            <span className={`px-2.5 py-1 rounded-lg ${espConnected ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-400'}`}>
+              🏜 {espConnected ? `${dryCount} ta Quruq` : '—'}
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {soilSensors?.map((sensor, idx) => {
-            const isWet = sensor.wet || sensor.status === 'normal';
+            const hasData = espConnected && sensor.status !== 'offline';
+            const isWet = Boolean(sensor.wet);
             return (
               <div
                 key={sensor.id || idx}
                 className={`p-3.5 rounded-2xl border transition-all ${
-                  isWet
+                  !hasData
+                    ? 'bg-slate-50/70 border-slate-200'
+                    : isWet
                     ? 'bg-gradient-to-b from-emerald-50/60 to-white border-emerald-200 shadow-sm'
                     : 'bg-gradient-to-b from-rose-50/60 to-white border-rose-200 shadow-sm'
                 }`}
@@ -235,35 +246,37 @@ export default function Dashboard() {
                     🌱 Ko'chat {idx + 1}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">
-                    P:{sensor.pin !== undefined ? sensor.pin : '—'}
+                    P:{sensor.pin !== undefined ? sensor.pin : idx + 1}
                   </span>
                 </div>
 
                 <div className="my-2 flex items-center justify-center">
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
-                      isWet
+                      !hasData
+                        ? 'bg-slate-200 text-slate-500'
+                        : isWet
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'bg-rose-500 text-white shadow-xs animate-pulse'
                     }`}
                   >
-                    {isWet ? '💧 Nam' : '🏜 Quruq'}
+                    {!hasData ? '⏳ Kutilmoqda' : isWet ? '💧 Nam' : '🏜 Quruq'}
                   </span>
                 </div>
 
                 <div className="mt-3">
                   <div className="flex justify-between text-[10px] text-slate-500 font-medium mb-1">
                     <span>Holat:</span>
-                    <strong className={isWet ? 'text-emerald-600' : 'text-rose-600'}>
-                      {isWet ? '85% (Yetarli)' : '18% (Suv kerak)'}
+                    <strong className={!hasData ? 'text-slate-400' : isWet ? 'text-emerald-600' : 'text-rose-600'}>
+                      {!hasData ? '— (Offline)' : isWet ? '85% (Yetarli)' : '18% (Suv kerak)'}
                     </strong>
                   </div>
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isWet ? 'bg-emerald-500' : 'bg-rose-500'
+                        !hasData ? 'bg-slate-300' : isWet ? 'bg-emerald-500' : 'bg-rose-500'
                       }`}
-                      style={{ width: isWet ? '85%' : '18%' }}
+                      style={{ width: !hasData ? '0%' : isWet ? '85%' : '18%' }}
                     />
                   </div>
                 </div>

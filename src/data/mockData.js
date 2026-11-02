@@ -39,7 +39,7 @@ export const INITIAL_SOIL_SENSORS = Array.from({ length: 10 }, (_, i) => ({
   value: 0,
   unit: '%',
   wet: false,
-  status: 'normal',
+  status: 'offline',
   pin: i + 1,
   plant: `Ko'chat #${i + 1}`,
 }));

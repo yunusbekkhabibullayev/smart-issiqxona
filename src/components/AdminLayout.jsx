@@ -273,10 +273,10 @@ export default function AdminLayout() {
             {/* Sensor quick values */}
             <div className="hidden sm:flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/60">
-                🌡️ <span className="font-semibold">{stats?.avgTemperature}°C</span>
+                🌡️ <span className="font-semibold">{stats?.avgTemperature !== null && stats?.avgTemperature !== undefined ? `${stats.avgTemperature}°C` : '—'}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/60">
-                💧 <span className="font-semibold">{stats?.avgHumidity}%</span>
+                💧 <span className="font-semibold">{stats?.avgHumidity !== null && stats?.avgHumidity !== undefined ? `${stats.avgHumidity}%` : '—'}</span>
               </div>
               {unresolved > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] font-medium text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200/60">
