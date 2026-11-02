@@ -17,6 +17,7 @@ const char* password = "12345678";      // WiFi paroli
 // Masalan: "https://issiqxona.vercel.app/api/status"
 // ─────────────────────────────────────────────
 const char* VERCEL_API_URL = "https://smart-issiqxona.vercel.app/api/status";
+const char* DEVICE_API_KEY = "smart_greenhouse_secret_2026"; // Vercel Settings -> Environment Variables dagi bilan bir xil bo'lishi kerak
 
 // ─────────────────────────────────────────────
 // 3. Telegram Bot sozlamalari
@@ -85,6 +86,9 @@ void syncWithVercel() {
   }
 
   https.addHeader("Content-Type", "application/json");
+  if (strlen(DEVICE_API_KEY) > 0) {
+    https.addHeader("X-Device-Key", DEVICE_API_KEY);
+  }
 
   // Datchik ma'lumotlarini o'qish
   float h = dht.readHumidity();
@@ -97,8 +101,8 @@ void syncWithVercel() {
   doc["ip"]       = WiFi.localIP().toString();
   doc["rssi"]     = WiFi.RSSI();
   doc["ssid"]     = WiFi.SSID();
-  doc["temp"]     = isnan(t) ? 24.5 : round(t * 10.0) / 10.0;
-  doc["humidity"] = isnan(h) ? 55.0 : round(h * 10.0) / 10.0;
+  if (!isnan(t)) doc["temp"] = round(t * 10.0) / 10.0;
+  if (!isnan(h)) doc["humidity"] = round(h * 10.0) / 10.0;
 
   // Hozirgi rele holatlari
   JsonArray relays = doc.createNestedArray("relays");

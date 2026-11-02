@@ -12,8 +12,8 @@ const char* password = "12345678";      // WiFi paroli
 
 // ─────────────────────────────────────────────
 // 2. Vercel Cloud Serverless API manzili
-// ─────────────────────────────────────────────
 const char* VERCEL_API_URL = "https://smart-issiqxona.vercel.app/api/status";
+const char* DEVICE_API_KEY = "smart_greenhouse_secret_2026"; // Vercel Settings -> Environment Variables dagi bilan bir xil bo'lishi kerak
 
 // ─────────────────────────────────────────────
 // 3. Telegram Bot sozlamalari
@@ -57,6 +57,9 @@ void sendTelemetryToVercel() {
   }
 
   http.addHeader("Content-Type", "application/json");
+  if (strlen(DEVICE_API_KEY) > 0) {
+    http.addHeader("X-Device-Key", DEVICE_API_KEY);
+  }
 
   // JSON ma'lumot tayyorlash
   StaticJsonDocument<1024> doc;

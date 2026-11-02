@@ -84,11 +84,12 @@ export function GreenhouseProvider({ children }) {
 
   // ── ESP8266 dan kelgan JSON ni qayta ishlash ───────────
   const processEspData = useCallback((data) => {
-    setEspConnected(true);
-    setLastSync(new Date());
+    const isOnline = data.online !== undefined ? Boolean(data.online) : (Boolean(data.lastSeen) && Date.now() - data.lastSeen < 30000);
+    setEspConnected(isOnline);
+    setLastSync(data.lastSeen ? new Date(data.lastSeen) : new Date());
 
     // 10 ta tuproq sensori (raqamli: wet=true → Nam, wet=false → Quruq)
-    if (Array.isArray(data.soil)) {
+    if (Array.isArray(data.soil) && data.soil.length > 0) {
       setSoilSensors(prev => prev.map((s, idx) => {
         const esp = data.soil[idx];
         if (!esp) return s;
@@ -107,19 +108,21 @@ export function GreenhouseProvider({ children }) {
       }));
 
       // Grafik uchun yangi nuqta (tuproq namligi foizi, harorat, namlik)
-      setChartData(prev => {
-        const now      = new Date();
-        const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-        const wetCount = data.soil.filter(s => s.wet).length;
-        const tuproq   = Math.round((wetCount / data.soil.length) * 100);
-        const harorat  = data.temp !== undefined ? Number(data.temp) : (prev[prev.length - 1]?.harorat || 0);
-        const namlik   = data.humidity !== undefined ? Number(data.humidity) : (prev[prev.length - 1]?.namlik || 0);
-        return [...prev.slice(-47), { time, harorat, namlik, tuproq }];
-      });
+      if (isOnline) {
+        setChartData(prev => {
+          const now      = new Date();
+          const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+          const wetCount = data.soil.filter(s => s.wet).length;
+          const tuproq   = Math.round((wetCount / data.soil.length) * 100);
+          const harorat  = (data.temp !== null && data.temp !== undefined) ? Number(data.temp) : (prev[prev.length - 1]?.harorat || 0);
+          const namlik   = (data.humidity !== null && data.humidity !== undefined) ? Number(data.humidity) : (prev[prev.length - 1]?.namlik || 0);
+          return [...prev.slice(-47), { time, harorat, namlik, tuproq }];
+        });
+      }
     }
 
     // DHT22 datchiklari (harorat va havoning namligi)
-    if (data.temp !== undefined && data.humidity !== undefined) {
+    if (data.temp !== null && data.temp !== undefined && data.humidity !== null && data.humidity !== undefined) {
       setSensors(prev => prev.map(s => {
         if (s.type === 'temperature') {
           const val = Number(data.temp);
@@ -136,7 +139,7 @@ export function GreenhouseProvider({ children }) {
     }
 
     // 4 ta rele holati (Isitish, Shamollatish 1/2, Nasos)
-    if (Array.isArray(data.relays)) {
+    if (Array.isArray(data.relays) && data.relays.length > 0) {
       setDevices(prev => prev.map(d => {
         let relId = null;
         if (d.id === 'heater') relId = 1;
@@ -159,11 +162,11 @@ export function GreenhouseProvider({ children }) {
       i === 0 ? {
         ...m,
         name:   'ESP32 / ESP8266 Issiqxona',
-        ip:     data.ip     || m.ip,
+        ip:     data.ip     || (isOnline ? m.ip : 'Offline'),
         rssi:   data.rssi   || m.rssi,
-        ssid:   data.ssid   || 'WiFi',
-        uptime: data.uptime ? formatUptime(data.uptime) : m.uptime,
-        status: 'online',
+        ssid:   data.ssid   || (isOnline ? m.ssid : '—'),
+        uptime: data.uptime ? formatUptime(data.uptime) : (isOnline ? m.uptime : '—'),
+        status: isOnline ? 'online' : 'offline',
       } : m
     ));
   }, []);

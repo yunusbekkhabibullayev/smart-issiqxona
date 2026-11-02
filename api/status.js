@@ -1,33 +1,6 @@
-const DEFAULT_STATE = {
-  ok: true,
-  uptime: 0,
-  ip: "unknown",
-  rssi: null,
-  ssid: "unknown",
-  temp: null,
-  humidity: null,
-  soil: [],
-  relays: [],
-  pendingCommands: [],
-  lastSeen: 0,
-};
+import { readState, writeState, checkDeviceAuth } from "./_db.js";
 
-globalThis.__SMART_ISSIQXONA_STATE__ ??= { ...DEFAULT_STATE };
-
-export function getLatestState() {
-  return globalThis.__SMART_ISSIQXONA_STATE__;
-}
-
-export function setLatestState(nextState) {
-  globalThis.__SMART_ISSIQXONA_STATE__ = {
-    ...DEFAULT_STATE,
-    ...(globalThis.__SMART_ISSIQXONA_STATE__ || {}),
-    ...nextState,
-  };
-  return globalThis.__SMART_ISSIQXONA_STATE__;
-}
-
-export default function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Device-Key");
@@ -36,49 +9,49 @@ export default function handler(req, res) {
     return res.status(200).end();
   }
 
-  const expectedKey = process.env.DEVICE_API_KEY || "";
-  const authHeader = String(req.headers.authorization || req.headers["x-device-key"] || "");
-  const deviceKey = authHeader.replace(/^Bearer\s+/i, "");
-
+  // 1. ESP Qurilmasidan telemetriya qabul qilish (POST)
   if (req.method === "POST") {
-    if (expectedKey && deviceKey !== expectedKey) {
+    if (!checkDeviceAuth(req)) {
       return res.status(401).json({ ok: false, error: "Unauthorized device" });
     }
 
     try {
       const data = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-      const state = getLatestState();
 
-      state.ok = data.ok ?? true;
-      state.uptime = Number.isFinite(data.uptime) ? Number(data.uptime) : state.uptime;
-      state.ip = data.ip ?? state.ip ?? "unknown";
-      state.rssi = data.rssi ?? state.rssi ?? null;
-      state.ssid = data.ssid ?? state.ssid ?? "unknown";
-      state.temp = data.temp ?? state.temp ?? null;
-      state.humidity = data.humidity ?? state.humidity ?? null;
-      state.soil = Array.isArray(data.soil) ? data.soil : (Array.isArray(state.soil) ? state.soil : []);
-      state.relays = Array.isArray(data.relays) ? data.relays : (Array.isArray(state.relays) ? state.relays : []);
-      state.lastSeen = Date.now();
+      let commandsToSend = [];
 
-      const commandsToSend = Array.isArray(state.pendingCommands) ? [...state.pendingCommands] : [];
-      state.pendingCommands = [];
+      const updated = await writeState((current) => {
+        commandsToSend = Array.isArray(current.pendingCommands) ? [...current.pendingCommands] : [];
+
+        return {
+          ok: true,
+          uptime: Number.isFinite(data.uptime) ? Number(data.uptime) : current.uptime,
+          ip: data.ip || current.ip || "unknown",
+          rssi: data.rssi !== undefined ? data.rssi : current.rssi,
+          ssid: data.ssid || current.ssid || "unknown",
+          temp: data.temp !== undefined ? Number(data.temp) : current.temp,
+          humidity: data.humidity !== undefined ? Number(data.humidity) : current.humidity,
+          soil: Array.isArray(data.soil) ? data.soil : current.soil,
+          relays: Array.isArray(data.relays) ? data.relays : current.relays,
+          pendingCommands: [], // Navbatdagi buyruqlar ESP ga berilgach tozalaymiz
+          lastSeen: Date.now(),
+        };
+      });
 
       return res.status(200).json({
         ok: true,
         commands: commandsToSend,
         receivedAt: Date.now(),
       });
-    } catch (error) {
-      return res.status(400).json({
-        ok: false,
-        error: "Invalid JSON payload",
-      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: "Invalid JSON payload" });
     }
   }
 
+  // 2. Frontend ma'lumot so'raganda (GET)
   if (req.method === "GET") {
-    const state = getLatestState();
-    const isOnline = Boolean(state.lastSeen) && Date.now() - state.lastSeen < 30000;
+    const state = await readState();
+    const isOnline = Boolean(state.lastSeen) && (Date.now() - state.lastSeen < 30000);
 
     return res.status(200).json({
       ...state,
