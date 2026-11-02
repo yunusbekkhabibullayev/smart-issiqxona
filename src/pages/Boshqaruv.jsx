@@ -255,25 +255,35 @@ export default function Boshqaruv() {
           </div>
 
           {/* Groups */}
-          {GROUPS.map(group => {
-            const gDevices = devices.filter(d => group.types.includes(d.icon));
-            if (!gDevices.length) return null;
-            return (
-              <div key={group.key}>
-                <GroupHeader label={group.label} icon={group.icon} devices={gDevices} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {gDevices.map(d => (
-                    <DeviceCard
-                      key={d.id}
-                      device={d}
-                      onToggle={toggleDevice}
-                      onModeToggle={toggleDeviceMode}
-                    />
-                  ))}
+          {devices.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 my-4">
+              <span className="text-3xl">🔌</span>
+              <h4 className="mt-2 text-sm font-bold text-slate-800">Relelar ulanmagan (Offline)</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                ESP qurilmasi hali ulanmagan. Qurilma ulanib, o'zining rele konfiguratsiyasini yuborishi bilan bu yerda boshqaruv tugmalari paydo bo'ladi.
+              </p>
+            </div>
+          ) : (
+            GROUPS.map(group => {
+              const gDevices = devices.filter(d => group.types.includes(d.icon));
+              if (!gDevices.length) return null;
+              return (
+                <div key={group.key}>
+                  <GroupHeader label={group.label} icon={group.icon} devices={gDevices} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {gDevices.map(d => (
+                      <DeviceCard
+                        key={d.id}
+                        device={d}
+                        onToggle={toggleDevice}
+                        onModeToggle={toggleDeviceMode}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 

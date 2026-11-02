@@ -2,18 +2,13 @@
 export const DEFAULT_STATE = {
   ok: true,
   uptime: 0,
-  ip: "unknown",
+  ip: null,
   rssi: null,
-  ssid: "unknown",
+  ssid: null,
   temp: null,
   humidity: null,
   soil: [],
-  relays: [
-    { id: 1, pin: 18, name: "Isitish Plitasi", on: false },
-    { id: 2, pin: 19, name: "Shamollatish 1", on: false },
-    { id: 3, pin: 22, name: "Shamollatish 2", on: false },
-    { id: 4, pin: 23, name: "Sug'orish Nasosi", on: false },
-  ],
+  relays: [], // Real ESP ulanmaguncha bo'sh bo'ladi!
   pendingCommands: [],
   lastSeen: 0,
 };

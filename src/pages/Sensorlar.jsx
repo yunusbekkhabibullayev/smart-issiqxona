@@ -203,6 +203,20 @@ function Esp32Card({ module }) {
 /* ── Status Summary ──────────────────────────── */
 function Summary({ sensors, soilSensors }) {
   const all = [...sensors, ...soilSensors];
+  if (all.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">⏳</span>
+          <div>
+            <p className="text-sm font-bold text-slate-800">Qurilma ulanmagan (Offline)</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">ESP qurilmangizdan ma'lumot kelishi kutilmoqda. Hech qanday datchik ulanmagan.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const n = all.filter(s => s.status === 'normal').length;
   const w = all.filter(s => s.status === 'warn').length;
   const d = all.filter(s => s.status === 'danger').length;

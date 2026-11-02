@@ -226,64 +226,69 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {soilSensors?.map((sensor, idx) => {
-            const hasData = espConnected && sensor.status !== 'offline';
-            const isWet = Boolean(sensor.wet);
-            return (
-              <div
-                key={sensor.id || idx}
-                className={`p-3.5 rounded-2xl border transition-all ${
-                  !hasData
-                    ? 'bg-slate-50/70 border-slate-200'
-                    : isWet
-                    ? 'bg-gradient-to-b from-emerald-50/60 to-white border-emerald-200 shadow-sm'
-                    : 'bg-gradient-to-b from-rose-50/60 to-white border-rose-200 shadow-sm'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800">
-                    🌱 Ko'chat {idx + 1}
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    P:{sensor.pin !== undefined ? sensor.pin : idx + 1}
-                  </span>
-                </div>
-
-                <div className="my-2 flex items-center justify-center">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
-                      !hasData
-                        ? 'bg-slate-200 text-slate-500'
-                        : isWet
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-rose-500 text-white shadow-xs animate-pulse'
-                    }`}
-                  >
-                    {!hasData ? '⏳ Kutilmoqda' : isWet ? '💧 Nam' : '🏜 Quruq'}
-                  </span>
-                </div>
-
-                <div className="mt-3">
-                  <div className="flex justify-between text-[10px] text-slate-500 font-medium mb-1">
-                    <span>Holat:</span>
-                    <strong className={!hasData ? 'text-slate-400' : isWet ? 'text-emerald-600' : 'text-rose-600'}>
-                      {!hasData ? '— (Offline)' : isWet ? '85% (Yetarli)' : '18% (Suv kerak)'}
-                    </strong>
+        {soilSensors.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/70">
+            <span className="text-3xl">🌱</span>
+            <h4 className="mt-2 text-sm font-bold text-slate-800">Tuproq datchiklari ma'lumoti kutilmoqda</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Qurilma ulanmagan (Offline). ESP32/ESP8266 yoqilib, Vercel API ga telemetriya yuborishi bilan bu yerda real ko'chatlar ko'rinadi.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {soilSensors.map((sensor, idx) => {
+              const isWet = Boolean(sensor.wet);
+              return (
+                <div
+                  key={sensor.id || idx}
+                  className={`p-3.5 rounded-2xl border transition-all ${
+                    isWet
+                      ? 'bg-gradient-to-b from-emerald-50/60 to-white border-emerald-200 shadow-sm'
+                      : 'bg-gradient-to-b from-rose-50/60 to-white border-rose-200 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-800">
+                      🌱 Ko'chat {idx + 1}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      P:{sensor.pin !== undefined ? sensor.pin : idx + 1}
+                    </span>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        !hasData ? 'bg-slate-300' : isWet ? 'bg-emerald-500' : 'bg-rose-500'
+
+                  <div className="my-2 flex items-center justify-center">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
+                        isWet
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-rose-500 text-white shadow-xs animate-pulse'
                       }`}
-                      style={{ width: !hasData ? '0%' : isWet ? '85%' : '18%' }}
-                    />
+                    >
+                      {isWet ? '💧 Nam' : '🏜 Quruq'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] text-slate-500 font-medium mb-1">
+                      <span>Holat:</span>
+                      <strong className={isWet ? 'text-emerald-600' : 'text-rose-600'}>
+                        {isWet ? '85% (Yetarli)' : '18% (Suv kerak)'}
+                      </strong>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          isWet ? 'bg-emerald-500' : 'bg-rose-500'
+                        }`}
+                        style={{ width: isWet ? '85%' : '18%' }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Chart + Devices */}
@@ -394,39 +399,47 @@ export default function Dashboard() {
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-500 mb-2">🌡️ Harorat</p>
               <div className="divide-y divide-slate-100">
-                {tempSensors.map(s => {
-                  const cfg = s.status === 'normal' ? 'text-emerald-600' : s.status === 'warn' ? 'text-amber-600' : 'text-rose-600';
-                  return (
-                    <div key={s.id} className="py-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
-                        <span className="text-xs text-slate-700 font-medium">{s.name}</span>
+                {tempSensors.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2">Ulanmagan (—)</p>
+                ) : (
+                  tempSensors.map(s => {
+                    const cfg = s.status === 'normal' ? 'text-emerald-600' : s.status === 'warn' ? 'text-amber-600' : 'text-rose-600';
+                    return (
+                      <div key={s.id} className="py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
+                          <span className="text-xs text-slate-700 font-medium">{s.name}</span>
+                        </div>
+                        <span className={`font-bold text-sm ${cfg}`}>
+                          {s.value}°C
+                        </span>
                       </div>
-                      <span className={`font-bold text-sm ${cfg}`}>
-                        {espConnected || s.value > 0 ? `${s.value}°C` : '—'}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 mb-2">💧 Namlik</p>
               <div className="divide-y divide-slate-100">
-                {humidSensors.map(s => {
-                  const cfg = s.status === 'normal' ? 'text-emerald-600' : s.status === 'warn' ? 'text-amber-600' : 'text-rose-600';
-                  return (
-                    <div key={s.id} className="py-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
-                        <span className="text-xs text-slate-700 font-medium">{s.name}</span>
+                {humidSensors.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2">Ulanmagan (—)</p>
+                ) : (
+                  humidSensors.map(s => {
+                    const cfg = s.status === 'normal' ? 'text-emerald-600' : s.status === 'warn' ? 'text-amber-600' : 'text-rose-600';
+                    return (
+                      <div key={s.id} className="py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'normal' ? 'bg-emerald-500' : s.status === 'warn' ? 'bg-amber-500 animate-blink' : 'bg-rose-500 animate-blink'}`} />
+                          <span className="text-xs text-slate-700 font-medium">{s.name}</span>
+                        </div>
+                        <span className={`font-bold text-sm ${cfg}`}>
+                          {s.value}%
+                        </span>
                       </div>
-                      <span className={`font-bold text-sm ${cfg}`}>
-                        {espConnected || s.value > 0 ? `${s.value}%` : '—'}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

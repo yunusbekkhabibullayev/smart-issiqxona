@@ -1,14 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import {
-  INITIAL_SENSORS,
-  INITIAL_SOIL_SENSORS,
-  INITIAL_DEVICES,
-  PLANTS,
-  ESP32_MODULES,
-  CHART_DATA,
-  ALERTS,
-  AUTOMATION_RULES,
-} from '../data/mockData';
 
 const GreenhouseContext = createContext(null);
 export function useGreenhouse() { return useContext(GreenhouseContext); }
@@ -62,17 +52,17 @@ export function GreenhouseProvider({ children }) {
       return null;
     }
   });
-  const [sensors, setSensors]                 = useState(INITIAL_SENSORS);
-  const [soilSensors, setSoilSensors]         = useState(INITIAL_SOIL_SENSORS);
-  const [devices, setDevices]                 = useState(INITIAL_DEVICES);
-  const [plants]                              = useState(PLANTS);
-  const [esp32Modules, setEsp32Modules]       = useState(ESP32_MODULES);
-  const [chartData, setChartData]             = useState(CHART_DATA);
-  const [alerts, setAlerts]                   = useState(ALERTS);
-  const [automationRules, setAutomationRules] = useState(AUTOMATION_RULES);
+  const [sensors, setSensors]                 = useState([]);
+  const [soilSensors, setSoilSensors]         = useState([]);
+  const [devices, setDevices]                 = useState([]);
+  const [plants, setPlants]                   = useState([]);
+  const [esp32Modules, setEsp32Modules]       = useState([]);
+  const [chartData, setChartData]             = useState([]);
+  const [alerts, setAlerts]                   = useState([]);
+  const [automationRules, setAutomationRules] = useState([]);
   const [toast, setToast]                     = useState(null);
   const [isSystemOnline, setIsSystemOnline]   = useState(true);
-  const [lastSync, setLastSync]               = useState(new Date());
+  const [lastSync, setLastSync]               = useState(null);
   const [espConnected, setEspConnected]       = useState(false);
 
   // ── Toast ──────────────────────────────────────────────
@@ -82,93 +72,106 @@ export function GreenhouseProvider({ children }) {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // ── ESP8266 dan kelgan JSON ni qayta ishlash ───────────
+  // ── ESP dan kelgan JSON ni qayta ishlash ───────────────
   const processEspData = useCallback((data) => {
     const isOnline = data.online !== undefined ? Boolean(data.online) : (Boolean(data.lastSeen) && Date.now() - data.lastSeen < 30000);
     setEspConnected(isOnline);
-    setLastSync(data.lastSeen ? new Date(data.lastSeen) : new Date());
+    setLastSync(data.lastSeen ? new Date(data.lastSeen) : null);
 
-    // 10 ta tuproq sensori (raqamli: wet=true → Nam, wet=false → Quruq)
+    if (!isOnline) {
+      setSensors([]);
+      setSoilSensors([]);
+      setDevices([]);
+      setEsp32Modules([]);
+      return;
+    }
+
+    // 1. Datchiklar (Harorat va Havo namligi) - faqat kelgan bo'lsa
+    const realSensors = [];
+    if (data.temp !== null && data.temp !== undefined) {
+      const val = Number(data.temp);
+      realSensors.push({
+        id: 'temp',
+        name: 'Harorat',
+        type: 'temperature',
+        value: val,
+        unit: '°C',
+        min: 0,
+        max: 50,
+        optimal: { min: 20, max: 28 },
+        status: val > 32 || val < 15 ? 'danger' : val > 28 || val < 20 ? 'warn' : 'normal',
+        lastUpdate: new Date().toISOString(),
+      });
+    }
+    if (data.humidity !== null && data.humidity !== undefined) {
+      const val = Number(data.humidity);
+      realSensors.push({
+        id: 'humidity',
+        name: 'Havo Namligi',
+        type: 'humidity',
+        value: val,
+        unit: '%',
+        min: 0,
+        max: 100,
+        optimal: { min: 55, max: 75 },
+        status: val > 80 || val < 40 ? 'danger' : val > 75 || val < 55 ? 'warn' : 'normal',
+        lastUpdate: new Date().toISOString(),
+      });
+    }
+    setSensors(realSensors);
+
+    // 2. Tuproq datchiklari - faqat kelgan bo'lsa
     if (Array.isArray(data.soil) && data.soil.length > 0) {
-      setSoilSensors(prev => prev.map((s, idx) => {
-        const esp = data.soil[idx];
-        if (!esp) return s;
-        const isWet  = Boolean(esp.wet);
-        const value  = isWet ? 85 : 18;
-        const status = isWet ? 'normal' : 'danger';
-        return {
-          ...s,
-          name: esp.label || s.name,
-          wet: isWet,
-          value,
-          status,
-          pin: esp.pin,
-          digital: isWet ? 'LOW (Nam)' : 'HIGH (Quruq)',
-        };
-      }));
+      setSoilSensors(data.soil.map((s, idx) => ({
+        id: s.id ?? idx + 1,
+        name: s.label || `Ko'chat ${s.id ?? idx + 1}`,
+        wet: Boolean(s.wet),
+        value: s.percent !== undefined ? s.percent : (s.wet ? 85 : 18),
+        status: s.wet ? 'normal' : 'danger',
+        pin: s.pin,
+      })));
 
-      // Grafik uchun yangi nuqta (tuproq namligi foizi, harorat, namlik)
-      if (isOnline) {
-        setChartData(prev => {
-          const now      = new Date();
-          const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-          const wetCount = data.soil.filter(s => s.wet).length;
-          const tuproq   = Math.round((wetCount / data.soil.length) * 100);
-          const harorat  = (data.temp !== null && data.temp !== undefined) ? Number(data.temp) : (prev[prev.length - 1]?.harorat || 0);
-          const namlik   = (data.humidity !== null && data.humidity !== undefined) ? Number(data.humidity) : (prev[prev.length - 1]?.namlik || 0);
-          return [...prev.slice(-47), { time, harorat, namlik, tuproq }];
-        });
-      }
+      // Grafik uchun real nuqta
+      setChartData(prev => {
+        const now      = new Date();
+        const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        const wetCount = data.soil.filter(s => s.wet).length;
+        const tuproq   = Math.round((wetCount / data.soil.length) * 100);
+        const harorat  = (data.temp !== null && data.temp !== undefined) ? Number(data.temp) : (prev[prev.length - 1]?.harorat || 0);
+        const namlik   = (data.humidity !== null && data.humidity !== undefined) ? Number(data.humidity) : (prev[prev.length - 1]?.namlik || 0);
+        return [...prev.slice(-47), { time, harorat, namlik, tuproq }];
+      });
+    } else {
+      setSoilSensors([]);
     }
 
-    // DHT22 datchiklari (harorat va havoning namligi)
-    if (data.temp !== null && data.temp !== undefined && data.humidity !== null && data.humidity !== undefined) {
-      setSensors(prev => prev.map(s => {
-        if (s.type === 'temperature') {
-          const val = Number(data.temp);
-          const status = val > s.optimal.max + 3 ? 'danger' : val > s.optimal.max ? 'warn' : val < s.optimal.min - 3 ? 'danger' : val < s.optimal.min ? 'warn' : 'normal';
-          return { ...s, value: val, status, lastUpdate: new Date().toISOString() };
-        }
-        if (s.type === 'humidity') {
-          const val = Number(data.humidity);
-          const status = val > s.optimal.max + 5 ? 'danger' : val > s.optimal.max ? 'warn' : val < s.optimal.min - 5 ? 'danger' : val < s.optimal.min ? 'warn' : 'normal';
-          return { ...s, value: val, status, lastUpdate: new Date().toISOString() };
-        }
-        return s;
-      }));
-    }
-
-    // 4 ta rele holati (Isitish, Shamollatish 1/2, Nasos)
+    // 3. Relelar - faqat qurilmadan kelgan bo'lsa
     if (Array.isArray(data.relays) && data.relays.length > 0) {
-      setDevices(prev => prev.map(d => {
-        let relId = null;
-        if (d.id === 'heater') relId = 1;
-        else if (d.id === 'fan1') relId = 2;
-        else if (d.id === 'fan2') relId = 3;
-        else if (d.id === 'pump') relId = 4;
-
-        if (relId) {
-          const r = data.relays.find(x => x.id === relId);
-          if (r && typeof r.on === 'boolean') {
-            return { ...d, isOn: r.on };
-          }
-        }
-        return d;
-      }));
+      setDevices(data.relays.map((r, idx) => ({
+        id: `relay_${r.id ?? idx + 1}`,
+        relayId: r.id ?? idx + 1,
+        name: r.name || `Rele ${r.id ?? idx + 1}`,
+        pin: r.pin !== undefined ? `Pin ${r.pin}` : `R${r.id ?? idx + 1}`,
+        isOn: Boolean(r.on),
+        icon: (r.id === 1 || r.name?.toLowerCase().includes('isitish')) ? 'fire'
+            : (r.id === 4 || r.name?.toLowerCase().includes('nasos') || r.name?.toLowerCase().includes('suv')) ? 'water'
+            : 'fan',
+        zone: 'Issiqxona',
+      })));
+    } else {
+      setDevices([]);
     }
 
-    // ESP modul ma'lumotlari (IP, signal kuchi, uptime)
-    setEsp32Modules(prev => prev.map((m, i) =>
-      i === 0 ? {
-        ...m,
-        name:   'ESP32 / ESP8266 Issiqxona',
-        ip:     data.ip     || (isOnline ? m.ip : 'Offline'),
-        rssi:   data.rssi   || m.rssi,
-        ssid:   data.ssid   || (isOnline ? m.ssid : '—'),
-        uptime: data.uptime ? formatUptime(data.uptime) : (isOnline ? m.uptime : '—'),
-        status: isOnline ? 'online' : 'offline',
-      } : m
-    ));
+    // 4. Modul ma'lumotlari
+    setEsp32Modules([{
+      id: 'esp1',
+      name: data.ssid ? `ESP (${data.ssid})` : 'ESP Issiqxona',
+      ip: data.ip || 'online',
+      rssi: data.rssi || 0,
+      ssid: data.ssid || 'Wi-Fi',
+      uptime: data.uptime ? formatUptime(data.uptime) : '0 sek',
+      status: 'online',
+    }]);
   }, []);
 
   // ── ESP8266 ga so'rov yuborish ─────────────────────────
