@@ -189,7 +189,10 @@ export function GreenhouseProvider({ children }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      console.log('%c[ESP] ✅ Jonli ma\'lumot keldi:', 'color:#10B981;font-weight:bold', data);
+      // Faqatgina haqiqiy ma'lumot kelgandagina (online bo'lganda) konsolga chiqarish
+      if (data.online) {
+        console.log('%c[ESP] ✅ Jonli ma\'lumot keldi:', 'color:#10B981;font-weight:bold', data);
+      }
       processEspData(data);
 
     } catch (err) {
